@@ -502,6 +502,9 @@ end;
 
 function TDebugInfoModules.FindByOffset(ASegment: TDebugInfoSegment; AOffset: TDebugInfoOffset): TDebugInfoModule;
 begin
+  if (ASegment = nil) then
+    Exit(nil);
+
   // Binary search
   var L := 0;
   var H := FModules.Count-1;
@@ -534,6 +537,9 @@ end;
 
 function TDebugInfoModules.FindOverlap(ASegment: TDebugInfoSegment; AOffset, ASize: TDebugInfoOffset): TDebugInfoModule;
 begin
+  if (ASegment = nil) then
+    Exit(nil);
+
   // Binary search
   var L := 0;
   var H := FModules.Count-1;

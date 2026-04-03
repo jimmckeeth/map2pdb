@@ -6,11 +6,18 @@ Copyright (c) 2021 Anders Melander
 
 https://github.com/andersmelander/map2pdb
 
-**map2pdb** is a tool used to convert the MAP files produced by the Delphi and C++ Builder compilers to Microsoft PDB files for use in [tools that support that format](#tools-that-consume-pdb-files).
+**map2pdb** is a tool used to convert the MAP files produced by the Delphi (Windows and Linux) and C++ Builder compilers to Microsoft PDB files for use in [tools that support that format](#tools-that-consume-pdb-files).
 
 ![Profiling a Delphi application in VTune](Info/vtune_delphi.png)
 
 map2pdb is written in pure Delphi with no dependencies on other libraries or tools. Unlike other similar solutions, it does not [rely on the undocumented Visual Studio DLLs](https://github.com/rainers/cv2pdb/blob/master/src/mspdb.cpp) to build and write the PDB file.
+
+### Supported Formats
+
+*   **Delphi MAP:** Traditional Windows segment:offset format.
+*   **GNU/ELF MAP:** As produced by the Delphi Linux compiler (`dcclinux64`) and the GNU/Gold linker.
+*   **JCL JDBG:** Binary debug format used by the JEDI Code Library.
+*   **C++ Builder MAP:** Support for C++ Builder produced map files.
 
 ### Usage
 

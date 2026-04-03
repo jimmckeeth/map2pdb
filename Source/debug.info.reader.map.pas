@@ -19,14 +19,6 @@ uses
   debug.info.log;
 
 type
-  IDebugInfoLineLogger = interface
-    ['{1EA6E06A-0491-4BCF-BFA5-508BC88912BD}']
-    procedure Warning(const Msg: string); overload;
-    procedure Warning(const Fmt: string; const Args: array of const); overload;
-    procedure Error(const Msg: string); overload;
-    procedure Error(const Fmt: string; const Args: array of const); overload;
-  end;
-
 // -----------------------------------------------------------------------------
 //
 //      TDebugInfoMapReader
@@ -34,11 +26,9 @@ type
 // -----------------------------------------------------------------------------
 // Reader for map files
 // -----------------------------------------------------------------------------
-type
   TDebugInfoMapReader = class(TDebugInfoReader)
-  private
-    FLineLogger: IDebugInfoLineLogger;
   protected
+    FLineLogger: IDebugInfoLineLogger;
     function HexToNibble(c: char): Cardinal;
     function HexToInt16(const s: string; var Offset: integer): Word;
     function HexToInt32(const s: string; var Offset: integer): Cardinal;
@@ -143,189 +133,6 @@ begin
     inc(n);
   end;
 end;
-
-// -----------------------------------------------------------------------------
-//
-//      TDebugInfoLineModuleLogger
-//
-// -----------------------------------------------------------------------------
-// Logger for map reader
-// -----------------------------------------------------------------------------
-type
-  IDebugInfoLineLoggerContextProvider = interface
-    ['{44664F53-A3E3-41FD-9DD4-6C98B8D4397D}']
-    function GetLineNumber: integer;
-    function GetLineText: string;
-    property LineNumber: integer read GetLineNumber;
-    property LineText: string read GetLineText;
-  end;
-
-type
-  TDebugInfoLineModuleLogger = class(TInterfacedObject, IDebugInfoLineLogger)
-  private
-    FModuleLogger: IDebugInfoModuleLogger;
-    FContextProvider: IDebugInfoLineLoggerContextProvider;
-  protected
-    // IDebugInfoLineModuleLogger
-    procedure Warning(const Msg: string); overload;
-    procedure Warning(const Fmt: string; const Args: array of const); overload;
-    procedure Error(const Msg: string); overload;
-    procedure Error(const Fmt: string; const Args: array of const); overload;
-  public
-    constructor Create(const AModuleLogger: IDebugInfoModuleLogger; const AContextProvider: IDebugInfoLineLoggerContextProvider);
-  end;
-
-procedure TDebugInfoLineModuleLogger.Error(const Msg: string);
-begin
-  FModuleLogger.Error('[%5d] %s'#13#10'%s', [FContextProvider.LineNumber, Msg, FContextProvider.LineText]);
-end;
-
-constructor TDebugInfoLineModuleLogger.Create(const AModuleLogger: IDebugInfoModuleLogger; const AContextProvider: IDebugInfoLineLoggerContextProvider);
-begin
-  inherited Create;
-  FModuleLogger := AModuleLogger;
-  FContextProvider := AContextProvider;
-end;
-
-procedure TDebugInfoLineModuleLogger.Error(const Fmt: string; const Args: array of const);
-begin
-  Error(Format(Fmt, Args));
-end;
-
-procedure TDebugInfoLineModuleLogger.Warning(const Msg: string);
-begin
-  FModuleLogger.Warning('[%5d] %s', [FContextProvider.LineNumber, Msg]);
-end;
-
-procedure TDebugInfoLineModuleLogger.Warning(const Fmt: string; const Args: array of const);
-begin
-  Warning(Format(Fmt, Args));
-end;
-
-
-// -----------------------------------------------------------------------------
-//
-//      TLineReader
-//
-// -----------------------------------------------------------------------------
-// Present an input stream as a sequence of text lines
-// -----------------------------------------------------------------------------
-type
-  TLineReader = class(TNoRefCountObject, IDebugInfoLineLoggerContextProvider)
-  strict private
-    FReader: TStreamReader;
-    FLineNumber: integer;
-    FLineBuffer: string;
-    FHasLineBuffer: boolean;
-    FPeekBuffer: string;
-    FHasPeekBuffer: boolean;
-  private
-    // IDebugInfoLineLoggerContextProvider
-    function GetLineNumber: integer;
-    function GetLineText: string;
-  public
-    constructor Create(Stream: TStream);
-    destructor Destroy; override;
-
-    function CurrentLine(Skip: boolean = False): string;
-    function HasData: boolean;
-    function NextLine(Skip: boolean = False): string;
-    function PeekLine(Skip: boolean = False): string;
-
-    function SkipSpace(Offset: integer): integer;
-
-    property LineBuffer: string read FLineBuffer;
-    property LineNumber: integer read FLineNumber;
-  end;
-
-// -----------------------------------------------------------------------------
-
-constructor TLineReader.Create(Stream: TStream);
-begin
-  inherited Create;
-
-  FReader := TStreamReader.Create(Stream);
-end;
-
-destructor TLineReader.Destroy;
-begin
-  FReader.Free;
-
-  inherited;
-end;
-
-function TLineReader.GetLineNumber: integer;
-begin
-  Result := FLineNumber;
-end;
-
-function TLineReader.GetLineText: string;
-begin
-  Result := FLineBuffer;
-end;
-
-function TLineReader.PeekLine(Skip: boolean): string;
-begin
-  while (not FHasPeekBuffer) and (not FReader.EndOfStream) do
-  begin
-    FPeekBuffer := FReader.ReadLine.TrimLeft;
-    Inc(FLineNumber);
-    if (not Skip) or (not FPeekBuffer.IsEmpty) then
-      FHasPeekBuffer := True;
-  end;
-
-  if (FHasPeekBuffer) then
-    Result := FPeekBuffer
-  else
-    Result := '';
-end;
-
-function TLineReader.SkipSpace(Offset: integer): integer;
-begin
-  Result := Offset;
-  while (Result <= Length(FLineBuffer)) and (FLineBuffer[Result] = ' ') do
-    Inc(Result);
-end;
-
-function TLineReader.CurrentLine(Skip: boolean): string;
-begin
-  if (not FHasLineBuffer) then
-  begin
-    if (not FHasPeekBuffer) then
-    begin
-      while (not FHasLineBuffer) and (not FReader.EndOfStream) do
-      begin
-        FLineBuffer := FReader.ReadLine.TrimLeft;
-        Inc(FLineNumber);
-        if (not Skip) or (not FLineBuffer.IsEmpty) then
-          FHasLineBuffer := True;
-      end;
-    end else
-    begin
-      FLineBuffer := FPeekBuffer;
-      FHasPeekBuffer := False;
-      FPeekBuffer := '';
-    end;
-  end;
-
-  if (FHasLineBuffer) then
-    Result := FLineBuffer
-  else
-    Result := '';
-end;
-
-function TLineReader.NextLine(Skip: boolean): string;
-begin
-  FHasLineBuffer := False;
-  FLineBuffer := '';
-  Result := CurrentLine(Skip);
-end;
-
-function TLineReader.HasData: boolean;
-begin
-  Result := (FHasLineBuffer) or (FHasPeekBuffer) or (not FReader.EndOfStream);
-end;
-
 
 // -----------------------------------------------------------------------------
 //
@@ -937,7 +744,8 @@ begin
   end;
 
   if (Offset = FirstOffset) then
-    LineLogger.Error('Invalid %d-bit hex number: "%s"', [SizeOf(Result)*8, Copy(s, FirstOffset, SizeOf(Result)*2)])
+    // Use warning instead of error to avoid fatal exception on unrecognized lines
+    LineLogger.Warning('Invalid %d-bit hex number: "%s"', [SizeOf(Result)*8, Copy(s, FirstOffset, SizeOf(Result)*2)])
   else
   if (Offset <= Length(s)) and (CharInSet(s[Offset], ['H', 'h'])) then
     Inc(Offset); // Skip trailing Hex indicator if it's there

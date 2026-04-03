@@ -64,3 +64,12 @@ __recovery/
 
 # Castalia statistics file (since XE7 Castalia is distributed with Delphi)
 *.stat
+
+
+# GEMINI CLI context
+GEMINI.md
+
+# Test data
+!Test/Data/*.map
+!Test/Data/*.dpr
+!Test/Data/*.dproj

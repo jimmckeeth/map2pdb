@@ -30,6 +30,7 @@ uses
   debug.info.writer.yaml in 'debug.info.writer.yaml.pas',
   debug.info.reader in 'debug.info.reader.pas',
   debug.info.reader.map in 'debug.info.reader.map.pas',
+  debug.info.reader.elfmap in 'debug.info.reader.elfmap.pas',
   debug.info.reader.test in 'debug.info.reader.test.pas',
   debug.info.reader.jdbg in 'debug.info.reader.jdbg.pas',
   debug.info.codeview in 'debug.info.codeview.pas',
@@ -37,7 +38,8 @@ uses
   debug.info.pdb in 'debug.info.pdb.pas',
   debug.info.pdb.bind in 'debug.info.pdb.bind.pas',
   debug.info.log in 'debug.info.log.pas',
-  debug.info.utilities in 'debug.info.utilities.pas';
+  debug.info.utilities in 'debug.info.utilities.pas',
+  System.Classes;
 
 var
   Logger: IDebugInfoModuleLogger;
@@ -95,9 +97,8 @@ begin
   Writeln('  -blocksize:<nnnn>          Set MSF block size');
   Writeln('                             (default: 4096, valid values are 1024, 2048, 4096,');
   Writeln('                             8192, etc.)');
-  Writeln('  -format:<source format>    Specify input file format: Map or Jdbg');
-  Writeln('                             By default auto detects from file type and falls');
-  Writeln('                             back to map format.');
+  Writeln('  -format:<source format>    Specify input file format: Map, ElfMap or Jdbg');
+  Writeln('                             By default auto detects from file type and content.');
   Writeln('  -pause                     Prompt after completion');
   Writeln;
   Writeln('Examples:');
@@ -159,20 +160,57 @@ const
   WriterClasses: array[TTargetType] of TDebugInfoWriterClass = (TDebugInfoPdbWriter, TDebugInfoYamlWriter);
 
 type
-  TInputFormat = (ifMap, ifJdbg, ifTest);
+  TInputFormat = (ifMap, ifElfMap, ifJdbg, ifTest);
 const
-  sInputFileTypes: array[TInputFormat] of string = ('.map', '.jdbg', '.test');
-  ReaderClasses: array[TInputFormat] of TDebugInfoReaderClass = (TDebugInfoMapReader, TDebugInfoJdbgReader, TDebugInfoSyntheticReader);
+  sInputFileTypes: array[TInputFormat] of string = ('.map', '.map', '.jdbg', '.test');
+  sInputFormatNames: array[TInputFormat] of string = ('Map', 'ElfMap', 'Jdbg', 'Test');
+  ReaderClasses: array[TInputFormat] of TDebugInfoReaderClass = (TDebugInfoMapReader, TDebugInfoElfMapReader, TDebugInfoJdbgReader, TDebugInfoSyntheticReader);
 
 function TryStrToInputFormat(const AName: string; var InputFormat: TInputFormat): boolean;
 begin
+  var Name := AName;
+  if Name.StartsWith('.') then
+    Name := Name.Substring(1);
+
   for var InFormat := Low(TInputFormat) to High(TInputFormat) do
-    if (SameText(AName, sInputFileTypes[InFormat])) then
+    if (SameText(Name, sInputFormatNames[InFormat])) or (SameText('.'+Name, sInputFileTypes[InFormat])) then
     begin
       InputFormat := InFormat;
       Exit(True);
     end;
   Result := False;
+end;
+
+function TryDetectInputFormat(const AFilename: string; var InputFormat: TInputFormat): boolean;
+begin
+  Result := False;
+  if not TFile.Exists(AFilename) then
+    Exit;
+
+  // Peak into the file to see if it looks like a Delphi or ELF map file
+  var Reader := TStreamReader.Create(AFilename);
+  try
+    var LineCount := 0;
+    while (not Reader.EndOfStream) and (LineCount < 50) do
+    begin
+      var Line := Reader.ReadLine;
+      Inc(LineCount);
+
+      if Line.Contains('Detailed map of segments') then
+      begin
+        InputFormat := ifMap;
+        Exit(True);
+      end;
+
+      if Line.StartsWith('.text') or Line.StartsWith('.data') or Line.Contains('0x00000000') or Line.Contains('Discarded input sections') then
+      begin
+        InputFormat := ifElfMap;
+        Result := True; // Keep looking for Delphi signature just in case
+      end;
+    end;
+  finally
+    Reader.Free;
+  end;
 end;
 
 begin
@@ -254,9 +292,13 @@ begin
       if (not FindCmdLineSwitch('format', FileType, True, [clstValueAppended])) or
         (not TryStrToInputFormat('.'+FileType, InputFormat)) then
       begin
-        // Then try to get it from the file type
-        FileType := TPath.GetExtension(SourceFilename);
-        TryStrToInputFormat(FileType, InputFormat);
+        // Then try to detect it from the file content
+        if not TryDetectInputFormat(SourceFilename, InputFormat) then
+        begin
+          // Finally try to get it from the file extension
+          FileType := TPath.GetExtension(SourceFilename);
+          TryStrToInputFormat(FileType, InputFormat);
+        end;
       end;
 
 

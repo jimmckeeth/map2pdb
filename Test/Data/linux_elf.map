@@ -1,0 +1,11 @@
+Memory Map
+
+.text          0x0000000000401000   0x0000000000100000
+.data          0x0000000000501000   0x0000000000010000
+
+Discarded input sections
+
+.data.rel.ro._ZTRN6System12TScanResultsE
+                0x0000000000401000       0x00000000000000e9 c:\program files (x86)\embarcadero\studio\37.0\lib\Linux64\release\System.o
+.data.rel.ro._ZTRZN6System15GetShimTypeInfoEyPhhRPNS_10TMetaClassERPcE6PClass
+                0x00000000004010e9       0x000000000000001a c:\program files (x86)\embarcadero\studio\37.0\lib\Linux64\release\System.o

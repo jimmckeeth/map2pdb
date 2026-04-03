@@ -51,19 +51,25 @@ uses
   SysUtils,
   IOUtils,
   debug.info.reader.map,
+  debug.info.reader.elfmap,
   debug.info.reader.test,
   debug.info.reader.jdbg;
 
 type
-  TInputFormat = (ifMap, ifJdbg, ifTest);
+  TInputFormat = (ifMap, ifElfMap, ifJdbg, ifTest);
 const
-  sInputFileTypes: array[TInputFormat] of string = ('.map', '.jdbg', '.test');
-  ReaderClasses: array[TInputFormat] of TDebugInfoReaderClass = (TDebugInfoMapReader, TDebugInfoJdbgReader, TDebugInfoSyntheticReader);
+  sInputFileTypes: array[TInputFormat] of string = ('.map', '.map', '.jdbg', '.test');
+  sInputFormatNames: array[TInputFormat] of string = ('Map', 'ElfMap', 'Jdbg', 'Test');
+  ReaderClasses: array[TInputFormat] of TDebugInfoReaderClass = (TDebugInfoMapReader, TDebugInfoElfMapReader, TDebugInfoJdbgReader, TDebugInfoSyntheticReader);
 
 function TryStrToInputFormat(const AName: string; var InputFormat: TInputFormat): boolean;
 begin
+  var Name := AName;
+  if Name.StartsWith('.') then
+    Name := Name.Substring(1);
+
   for var InFormat := Low(TInputFormat) to High(TInputFormat) do
-    if (SameText(AName, sInputFileTypes[InFormat])) then
+    if (SameText(Name, sInputFormatNames[InFormat])) or (SameText('.'+Name, sInputFileTypes[InFormat])) then
     begin
       InputFormat := InFormat;
       Exit(True);
