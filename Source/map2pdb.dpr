@@ -23,6 +23,7 @@ uses
   System.Diagnostics,
   System.Generics.Collections,
   System.StrUtils,
+  System.Classes,
   amVersionInfo,
   debug.info in 'debug.info.pas',
   debug.info.writer in 'debug.info.writer.pas',
@@ -38,8 +39,7 @@ uses
   debug.info.pdb in 'debug.info.pdb.pas',
   debug.info.pdb.bind in 'debug.info.pdb.bind.pas',
   debug.info.log in 'debug.info.log.pas',
-  debug.info.utilities in 'debug.info.utilities.pas',
-  System.Classes;
+  debug.info.utilities in 'debug.info.utilities.pas';
 
 var
   Logger: IDebugInfoModuleLogger;
@@ -98,7 +98,8 @@ begin
   Writeln('                             (default: 4096, valid values are 1024, 2048, 4096,');
   Writeln('                             8192, etc.)');
   Writeln('  -format:<source format>    Specify input file format: Map, ElfMap or Jdbg');
-  Writeln('                             By default auto detects from file type and content.');
+  Writeln('                             By default auto detects from file type and falls');
+  Writeln('                             back to map format.');
   Writeln('  -pause                     Prompt after completion');
   Writeln;
   Writeln('Examples:');
