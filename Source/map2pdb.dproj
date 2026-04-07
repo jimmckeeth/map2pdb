@@ -120,6 +120,7 @@
         <DCCReference Include="debug.info.writer.pdb.pas"/>
         <DCCReference Include="debug.info.writer.yaml.pas"/>
         <DCCReference Include="debug.info.reader.pas"/>
+        <DCCReference Include="debug.info.reader.factory.pas"/>
         <DCCReference Include="debug.info.reader.map.pas"/>
         <DCCReference Include="debug.info.reader.elfmap.pas"/>
         <DCCReference Include="debug.info.reader.test.pas"/>

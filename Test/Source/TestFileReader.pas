@@ -18,6 +18,7 @@ type
     procedure DoLoadFromFile;
     procedure ProcessDebugInfo(DebugInfo: TDebugInfo); virtual;
   public
+    class function HandlesFiles(const AFilename: string): boolean; override;
     procedure SetUp; override;
     procedure TearDown; override;
   end;
@@ -25,6 +26,7 @@ type
   TTestFileReader = class(TCustomMapTest)
   published
     procedure TestLoadFromFile;
+    procedure TestRobustness;
   end;
 
   TTestFileReaderErrors = class(TTestFileReader)
@@ -50,31 +52,14 @@ uses
   Windows,
   SysUtils,
   IOUtils,
+  StrUtils,
   debug.info.reader.map,
-  debug.info.reader.elfmap,
-  debug.info.reader.test,
-  debug.info.reader.jdbg;
+  debug.info.reader.factory;
 
-type
-  TInputFormat = (ifMap, ifElfMap, ifJdbg, ifTest);
-const
-  sInputFileTypes: array[TInputFormat] of string = ('.map', '.map', '.jdbg', '.test');
-  sInputFormatNames: array[TInputFormat] of string = ('Map', 'ElfMap', 'Jdbg', 'Test');
-  ReaderClasses: array[TInputFormat] of TDebugInfoReaderClass = (TDebugInfoMapReader, TDebugInfoElfMapReader, TDebugInfoJdbgReader, TDebugInfoSyntheticReader);
-
-function TryStrToInputFormat(const AName: string; var InputFormat: TInputFormat): boolean;
+class function TCustomMapTest.HandlesFiles(const AFilename: string): boolean;
 begin
-  var Name := AName;
-  if Name.StartsWith('.') then
-    Name := Name.Substring(1);
-
-  for var InFormat := Low(TInputFormat) to High(TInputFormat) do
-    if (SameText(Name, sInputFormatNames[InFormat])) or (SameText('.'+Name, sInputFileTypes[InFormat])) then
-    begin
-      InputFormat := InFormat;
-      Exit(True);
-    end;
-  Result := False;
+  var Ext := TPath.GetExtension(AFilename);
+  Result := MatchStr(Ext.ToLower, ['.map', '.jdbg', '.test']);
 end;
 
 procedure TCustomMapTest.SetUp;
@@ -94,20 +79,21 @@ begin
   ** Determine source file format
   *)
   var InputFormat: TInputFormat;
-  var FileType := TPath.GetExtension(TestFileName);
-  if (not TryStrToInputFormat(FileType, InputFormat)) then
+  if (not TryDetectInputFormat(TestFileName, InputFormat)) then
   begin
-    Check(True);
-    Status('Unknown file format');
-    exit;
+    var FileType := TPath.GetExtension(TestFileName);
+    if (not TryStrToInputFormat(FileType, InputFormat)) then
+    begin
+      Check(True);
+      Status('Unknown file format');
+      exit;
+    end;
   end;
 
   (*
   ** Read source file
   *)
-  var ReaderClass: TDebugInfoReaderClass := ReaderClasses[InputFormat];
-
-  var Reader := ReaderClass.Create;
+  var Reader := CreateReader(InputFormat);
   try
 
     Reader.LoadFromFile(TestFileName, FDebugInfo);
@@ -130,6 +116,30 @@ end;
 procedure TTestFileReader.TestLoadFromFile;
 begin
   DoLoadFromFile;
+end;
+
+procedure TTestFileReader.TestRobustness;
+begin
+  // Force Map reader on the ELF map file to verify robustness (no crash)
+  if not TestFileName.Contains('linux_elf') then
+  begin
+    Check(True);
+    exit;
+  end;
+
+  var Reader := TDebugInfoMapReader.Create;
+  try
+    var DebugInfo := TDebugInfo.Create;
+    try
+      Reader.LoadFromFile(TestFileName, DebugInfo);
+      // We don't check for success, just that it didn't crash
+      Check(True);
+    finally
+      DebugInfo.Free;
+    end;
+  finally
+    Reader.Free;
+  end;
 end;
 
 

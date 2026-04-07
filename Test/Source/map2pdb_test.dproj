@@ -56,6 +56,7 @@
         <SanitizedProjectName>map2pdb_test</SanitizedProjectName>
         <DCC_DcuOutput>..\Lib\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>..\Bin\$(Platform)\$(Config)</DCC_ExeOutput>
+        <DCC_MapFile>3</DCC_MapFile>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;DUnitX;Winapi;$(DCC_Namespace)</DCC_Namespace>
         <DCC_UnitSearchPath>..\..\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
@@ -84,7 +85,7 @@
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
-        <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
+        <DCC_Define>DEBUG;CONSOLE_TESTRUNNER;$(DCC_Define)</DCC_Define>
         <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
         <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
         <DCC_Optimize>false</DCC_Optimize>
@@ -104,6 +105,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="TestFileReader.pas"/>
+        <DCCReference Include="..\..\Source\debug.info.reader.factory.pas"/>
         <DCCReference Include="..\DUnit\FileTestFramework.pas"/>
         <DCCReference Include="TestFileWriter.pas"/>
         <BuildConfiguration Include="Base">

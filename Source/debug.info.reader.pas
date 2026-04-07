@@ -18,6 +18,13 @@ uses
   debug.info.log;
 
 type
+  TInputFormat = (ifMap, ifElfMap, ifJdbg, ifTest);
+
+const
+  sInputFileTypes: array[TInputFormat] of string = ('.map', '.map', '.jdbg', '.test');
+  sInputFormatNames: array[TInputFormat] of string = ('Map', 'ElfMap', 'Jdbg', 'Test');
+
+type
   IDebugInfoLineLogger = interface
     ['{1EA6E06A-0491-4BCF-BFA5-508BC88912BD}']
     procedure Warning(const Msg: string); overload;

@@ -30,6 +30,7 @@ uses
   debug.info.writer.pdb in 'debug.info.writer.pdb.pas',
   debug.info.writer.yaml in 'debug.info.writer.yaml.pas',
   debug.info.reader in 'debug.info.reader.pas',
+  debug.info.reader.factory in 'debug.info.reader.factory.pas',
   debug.info.reader.map in 'debug.info.reader.map.pas',
   debug.info.reader.elfmap in 'debug.info.reader.elfmap.pas',
   debug.info.reader.test in 'debug.info.reader.test.pas',
@@ -160,60 +161,6 @@ const
   sOutputFileTypes: array[TTargetType] of string = ('.pdb', '.yaml');
   WriterClasses: array[TTargetType] of TDebugInfoWriterClass = (TDebugInfoPdbWriter, TDebugInfoYamlWriter);
 
-type
-  TInputFormat = (ifMap, ifElfMap, ifJdbg, ifTest);
-const
-  sInputFileTypes: array[TInputFormat] of string = ('.map', '.map', '.jdbg', '.test');
-  sInputFormatNames: array[TInputFormat] of string = ('Map', 'ElfMap', 'Jdbg', 'Test');
-  ReaderClasses: array[TInputFormat] of TDebugInfoReaderClass = (TDebugInfoMapReader, TDebugInfoElfMapReader, TDebugInfoJdbgReader, TDebugInfoSyntheticReader);
-
-function TryStrToInputFormat(const AName: string; var InputFormat: TInputFormat): boolean;
-begin
-  var Name := AName;
-  if Name.StartsWith('.') then
-    Name := Name.Substring(1);
-
-  for var InFormat := Low(TInputFormat) to High(TInputFormat) do
-    if (SameText(Name, sInputFormatNames[InFormat])) or (SameText('.'+Name, sInputFileTypes[InFormat])) then
-    begin
-      InputFormat := InFormat;
-      Exit(True);
-    end;
-  Result := False;
-end;
-
-function TryDetectInputFormat(const AFilename: string; var InputFormat: TInputFormat): boolean;
-begin
-  Result := False;
-  if not TFile.Exists(AFilename) then
-    Exit;
-
-  // Peak into the file to see if it looks like a Delphi or ELF map file
-  var Reader := TStreamReader.Create(AFilename);
-  try
-    var LineCount := 0;
-    while (not Reader.EndOfStream) and (LineCount < 50) do
-    begin
-      var Line := Reader.ReadLine;
-      Inc(LineCount);
-
-      if Line.Contains('Detailed map of segments') then
-      begin
-        InputFormat := ifMap;
-        Exit(True);
-      end;
-
-      if Line.StartsWith('.text') or Line.StartsWith('.data') or Line.Contains('0x00000000') or Line.Contains('Discarded input sections') then
-      begin
-        InputFormat := ifElfMap;
-        Result := True; // Keep looking for Delphi signature just in case
-      end;
-    end;
-  finally
-    Reader.Free;
-  end;
-end;
-
 begin
   var DoPause := FindCmdLineSwitch('pause');
   var sw := TStopwatch.StartNew;
@@ -306,9 +253,7 @@ begin
       (*
       ** Read source file
       *)
-      var ReaderClass: TDebugInfoReaderClass := ReaderClasses[InputFormat];
-
-      var Reader := ReaderClass.Create;
+      var Reader := CreateReader(InputFormat);
       try
 
         Reader.LoadFromFile(SourceFilename, DebugInfo);

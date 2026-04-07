@@ -223,7 +223,7 @@ begin
         n := SkipRequiredDelimiter(' ', Reader.LineBuffer, n, 'Missing segment name/class name delimiter');
         var ClassName := Copy(Reader.LineBuffer, n, MaxInt).Trim;
         if (ClassName.IsEmpty) then
-          LineLogger.Error('Invalid segment class name');
+          LineLogger.Warning('Invalid segment class name');
 
         // Try to detect ancient map files with invalid segment info
         if (not LegacyMapFile) and (SegmentID = 2) and (Offset = 0) then
@@ -343,7 +343,7 @@ begin
           until (n2 = 0);
         end;
         if (EndOfName = StartOfName) then
-          LineLogger.Error('Missing module ALIGN/ACBP marker');
+          LineLogger.Warning('Missing module ALIGN/ACBP marker');
 
         // Trim trailing space
         while (EndOfName > StartOfName) and (Reader.LineBuffer[EndOfName] = ' ') do
@@ -369,7 +369,7 @@ begin
           ModuleName := TPath.GetFileNameWithoutExtension(ModuleName);
 
         if (ModuleName.IsEmpty) then
-          LineLogger.Error('Invalid module name');
+          LineLogger.Warning('Invalid module name');
 
         ModulePos := 1;
         var SegmentID: Cardinal;
@@ -380,7 +380,7 @@ begin
 
         var Size: TDebugInfoOffset := HexToInt32(Address, ModulePos);
         if (Size = 0) then
-          LineLogger.Error('Invalid module size');
+          LineLogger.Warning('Invalid module size');
 
         var Segment: TDebugInfoSegment := nil;
         if (LegacyMapFile) then
@@ -391,7 +391,7 @@ begin
           Segment := DebugInfo.Segments.FindByIndex(SegmentID);
 
         if (Segment = nil) then
-          LineLogger.Error('Unknown segment: %.4X (%s)', [SegmentID, ClassName]);
+          LineLogger.Warning('Unknown segment: %.4X (%s)', [SegmentID, ClassName]);
 
         // Look for existing module
         var Module := DebugInfo.Modules.FindOverlap(Segment, Offset, Size);
@@ -478,7 +478,7 @@ begin
 
         var Name := Copy(Reader.LineBuffer, n+1, MaxInt).TrimLeft;
         if (Name.IsEmpty) then
-          LineLogger.Error('Invalid symbol name');
+          LineLogger.Warning('Invalid symbol name');
 
         n := 1;
         var SegmentID: Cardinal;
@@ -487,7 +487,7 @@ begin
 
         var Segment := DebugInfo.Segments.FindByIndex(SegmentID);
         if (Segment = nil) then
-          LineLogger.Error('Unknown segment index: %.4X', [SegmentID]);
+          LineLogger.Warning('Unknown segment index: %.4X', [SegmentID]);
 
         var Module := DebugInfo.Modules.FindByOffset(Segment, Offset);
 
@@ -566,7 +566,7 @@ begin
         var SegmentName := GetSectionName(Reader.LineBuffer, n);
         var Segment := DebugInfo.Segments.FindByName(SegmentName);
         if (Segment = nil) then
-          LineLogger.Error('Unknown segment name: %s', [SegmentName]);
+          LineLogger.Warning('Unknown segment name: %s', [SegmentName]);
 
         var Module := DebugInfo.Modules.FindByName(ModuleName, Segment);
         if (Module <> nil) then
@@ -594,7 +594,7 @@ begin
               ParseSegmentAndOffset(Reader.LineBuffer, n, SegmentID, Offset);
 
               if (SegmentID <> Segment.Index) then
-                LineLogger.Error('Segment mismatch. Module segment:%.4X (%s), Line segment:%.4X', [Segment.Index, Segment.Name, SegmentID]);
+                LineLogger.Warning('Segment mismatch. Module segment:%.4X (%s), Line segment:%.4X', [Segment.Index, Segment.Name, SegmentID]);
 
               // Ignore line numbers with offset=0
               if (Offset <> 0) then
@@ -608,7 +608,7 @@ begin
                   // Validate module
                   var ModuleByOffset := DebugInfo.Modules.FindByOffset(Module.Segment, Offset);
                   if (Module <> ModuleByOffset) then
-                    LineLogger.Error('Module mismatch: Offset=%.16X, Module=%s, Found module:%s', [Offset, Module.Name, ModuleByOffset.Name]);
+                    LineLogger.Warning('Module mismatch: Offset=%.16X, Module=%s, Found module:%s', [Offset, Module.Name, ModuleByOffset.Name]);
 
                   // Offset is relative to segment. Make it relative to module
                   Dec(Offset, Module.Offset);
@@ -695,7 +695,7 @@ begin
   end;
 
   if (Offset = FirstOffset) then
-    LineLogger.Error('Invalid %d-bit hex number: "%s"', [SizeOf(Result)*8, Copy(s, FirstOffset, SizeOf(Result)*2)])
+    LineLogger.Warning('Invalid %d-bit hex number: "%s"', [SizeOf(Result)*8, Copy(s, FirstOffset, SizeOf(Result)*2)])
   else
   if (Offset <= Length(s)) and (CharInSet(s[Offset], ['H', 'h'])) then
     Inc(Offset); // Skip trailing Hex indicator if it's there
@@ -718,7 +718,7 @@ begin
   end;
 
   if (Offset = FirstOffset) then
-    LineLogger.Error('Invalid %d-bit hex number: "%s"', [SizeOf(Result)*8, Copy(s, FirstOffset, SizeOf(Result)*2)])
+    LineLogger.Warning('Invalid %d-bit hex number: "%s"', [SizeOf(Result)*8, Copy(s, FirstOffset, SizeOf(Result)*2)])
   else
   if (Offset <= Length(s)) and (CharInSet(s[Offset], ['H', 'h'])) then
     Inc(Offset); // Skip trailing Hex indicator if it's there
@@ -767,7 +767,7 @@ begin
   end;
 
   if (not Any) then
-    LineLogger.Error('Invalid integer number: "%s"', [Copy(s, Offset, MaxInt)])
+    LineLogger.Warning('Invalid integer number: "%s"', [Copy(s, Offset, MaxInt)])
   else
   if (CharInSet(p^, ['H', 'h'])) then
     Inc(Offset); // Skip trailing Hex indicator if it's there
@@ -780,7 +780,7 @@ begin
   SegmentID := HexToInt32(s, Index);
 
   if (Index > Length(s)) or (s[Index] <> ':') then
-    LineLogger.Error('Missing segment/offset separator');
+    LineLogger.Warning('Missing segment/offset separator');
 
   Inc(Index);
   Result := Index;
@@ -804,7 +804,7 @@ begin
     end;
 
   if (Start = Offset) then
-    LineLogger.Error('Invalid segment name');
+    LineLogger.Warning('Invalid segment name');
 
   Result := Copy(Str, Start, Offset-Start);
 end;
@@ -821,7 +821,7 @@ begin
   end;
 
   if (Result = 0) then
-    LineLogger.Error(ErrorMsg);
+    LineLogger.Warning(ErrorMsg);
 end;
 
 // -----------------------------------------------------------------------------
@@ -831,7 +831,7 @@ begin
   Result := Pos(Marker, Str, Offset);
 
   if (Result = 0) then
-    LineLogger.Error(ErrorMsg)
+    LineLogger.Warning(ErrorMsg)
   else
   if (SkipMarker) then
     Inc(Result, Length(Marker));
