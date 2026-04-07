@@ -89,7 +89,6 @@
         <DCC_Optimize>false</DCC_Optimize>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
-        <DCC_Define>madExcept;$(DCC_Define)</DCC_Define>
         <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
         <DCC_RangeChecking>true</DCC_RangeChecking>
         <DCC_UnitSearchPath>.\Externals\JEDI;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
@@ -109,7 +108,6 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
         <DCC_DebugInformation>2</DCC_DebugInformation>
-        <DCC_Define>madExcept;$(DCC_Define)</DCC_Define>
         <DCC_LocalDebugSymbols>true</DCC_LocalDebugSymbols>
         <Debugger_RunParams>map2pdb.map -pause -v</Debugger_RunParams>
     </PropertyGroup>
