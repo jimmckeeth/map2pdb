@@ -414,7 +414,7 @@ end;
 
 function TMSFFile.GetFixedStream(Index: PDBStreamIndex): TMSFStream;
 begin
-  Result := nil;
+  //Result := nil;
   // The list contains streams in allocation order, not Index order.
   for var i := 0 to FStreams.Count-1 do
     if (FStreams[i].HasIndex) and (FStreams[i].Index = Word(Ord(Index))) then
@@ -424,7 +424,7 @@ end;
 
 function TMSFFile.GetStream(Index: TMSFStreamIndex): TMSFStream;
 begin
-  Result := nil;
+  //Result := nil;
   // The list contains streams in allocation order, not Index order.
   for var i := 0 to FStreams.Count-1 do
     if (FStreams[i].HasIndex) and (FStreams[i].Index = Index) then
