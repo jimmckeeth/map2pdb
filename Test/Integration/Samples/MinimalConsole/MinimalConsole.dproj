@@ -5,7 +5,7 @@
         <Config Condition="'$(Config)'==''">Release</Config>
         <FrameworkType>None</FrameworkType>
         <MainSource>MinimalConsole.dpr</MainSource>
-        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <Platform Condition="'$(Platform)'==''">Linux64</Platform>
         <ProjectGuid>{F3BF81A0-D6F1-470E-ACA9-135E08B0CFAC}</ProjectGuid>
         <ProjectName Condition="'$(ProjectName)'==''">MinimalConsole</ProjectName>
         <ProjectVersion>20.4</ProjectVersion>

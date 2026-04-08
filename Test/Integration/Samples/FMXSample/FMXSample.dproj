@@ -5,7 +5,7 @@
         <Config Condition="'$(Config)'==''">Release</Config>
         <FrameworkType>FMX</FrameworkType>
         <MainSource>FMXSample.dpr</MainSource>
-        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <Platform Condition="'$(Platform)'==''">Linux64</Platform>
         <ProjectGuid>{E04F9E00-FE74-4FC1-96DD-57441C7FE4D5}</ProjectGuid>
         <ProjectName Condition="'$(ProjectName)'==''">FMXSample</ProjectName>
         <ProjectVersion>20.4</ProjectVersion>
