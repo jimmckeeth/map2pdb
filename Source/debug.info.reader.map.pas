@@ -473,8 +473,12 @@ begin
       // " 0001:000E99AC       debug.info..TDebugInfo"
       while (not Reader.CurrentLine.IsEmpty) do
       begin
-        var n := FindRequiredMarker(' ', Reader.LineBuffer, 1, 'Missing address/symbol separator');
-        var Address := Copy(Reader.LineBuffer, 1, n-1);
+        var StartPos := 1;
+        while (StartPos <= Reader.LineBuffer.Length) and (Reader.LineBuffer[StartPos] = ' ') do
+          Inc(StartPos);
+
+        var n := FindRequiredMarker(' ', Reader.LineBuffer, StartPos, 'Missing address/symbol separator');
+        var Address := Copy(Reader.LineBuffer, StartPos, n-StartPos);
 
         var Name := Copy(Reader.LineBuffer, n+1, MaxInt).TrimLeft;
         if (Name.IsEmpty) then
@@ -681,6 +685,10 @@ end;
 function TDebugInfoMapReader.HexToInt16(const s: string; var Offset: integer): Word;
 begin
   Result := 0;
+  // Skip leading spaces
+  while (Offset <= Length(s)) and (s[Offset] = ' ') do
+    Inc(Offset);
+
   var FirstOffset := Offset;
   var i := SizeOf(Result) * 2;
   while (i > 0) and (Offset <= Length(s)) do
@@ -704,6 +712,10 @@ end;
 function TDebugInfoMapReader.HexToInt32(const s: string; var Offset: integer): Cardinal;
 begin
   Result := 0;
+  // Skip leading spaces
+  while (Offset <= Length(s)) and (s[Offset] = ' ') do
+    Inc(Offset);
+
   var FirstOffset := Offset;
   var i := SizeOf(Result) * 2;
   while (i > 0) and (Offset <= Length(s)) do
@@ -730,6 +742,10 @@ begin
   // - We need to allow 32-bit hex value (Segment offset is 16 digits in map files
   //   produced by Delphi 11.2, 8 digits in older versions)
   Result := 0;
+  // Skip leading spaces
+  while (Offset <= Length(s)) and (s[Offset] = ' ') do
+    Inc(Offset);
+
   var FirstOffset := Offset;
   var i := SizeOf(Result) * 2;
   while (i > 0) and (Offset <= Length(s)) do
@@ -756,12 +772,14 @@ end;
 function TDebugInfoMapReader.DecToInt32(const s: string; var Offset: integer): integer;
 begin
   Result := 0;
+  // Skip leading spaces
+  while (Offset <= Length(s)) and (s[Offset] = ' ') do
+    Inc(Offset);
+
   var Any := False;
-  var p: PChar := @s[Offset];
-  while Ord(p^) in [Ord('0') .. Ord('9')] do
+  while (Offset <= Length(s)) and (Ord(s[Offset]) in [Ord('0') .. Ord('9')]) do
   begin
-    Result := (Result * 10) + (Ord(p^) - Ord('0'));
-    Inc(p);
+    Result := (Result * 10) + (Ord(s[Offset]) - Ord('0'));
     Inc(Offset);
     Any := True;
   end;
@@ -769,7 +787,7 @@ begin
   if (not Any) then
     LineLogger.Warning('Invalid integer number: "%s"', [Copy(s, Offset, MaxInt)])
   else
-  if (CharInSet(p^, ['H', 'h'])) then
+  if (Offset <= Length(s)) and (CharInSet(s[Offset], ['H', 'h'])) then
     Inc(Offset); // Skip trailing Hex indicator if it's there
 end;
 

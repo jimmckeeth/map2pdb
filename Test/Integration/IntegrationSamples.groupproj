@@ -1,0 +1,84 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{6AD90B50-D8ED-4093-A414-EECFA6C4E7C9}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Samples\ComplexGenerics\ComplexGenerics.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Samples\VCLSample\VCLSample.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Samples\Library\LibrarySample.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Samples\MinimalConsole\MinimalConsole.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Samples\FMXSample\FMXSample.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ComplexGenerics">
+        <MSBuild Projects="Samples\ComplexGenerics\ComplexGenerics.dproj"/>
+    </Target>
+    <Target Name="ComplexGenerics:Clean">
+        <MSBuild Projects="Samples\ComplexGenerics\ComplexGenerics.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ComplexGenerics:Make">
+        <MSBuild Projects="Samples\ComplexGenerics\ComplexGenerics.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="VCLSample">
+        <MSBuild Projects="Samples\VCLSample\VCLSample.dproj"/>
+    </Target>
+    <Target Name="VCLSample:Clean">
+        <MSBuild Projects="Samples\VCLSample\VCLSample.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="VCLSample:Make">
+        <MSBuild Projects="Samples\VCLSample\VCLSample.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="LibrarySample">
+        <MSBuild Projects="Samples\Library\LibrarySample.dproj"/>
+    </Target>
+    <Target Name="LibrarySample:Clean">
+        <MSBuild Projects="Samples\Library\LibrarySample.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="LibrarySample:Make">
+        <MSBuild Projects="Samples\Library\LibrarySample.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="MinimalConsole">
+        <MSBuild Projects="Samples\MinimalConsole\MinimalConsole.dproj"/>
+    </Target>
+    <Target Name="MinimalConsole:Clean">
+        <MSBuild Projects="Samples\MinimalConsole\MinimalConsole.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="MinimalConsole:Make">
+        <MSBuild Projects="Samples\MinimalConsole\MinimalConsole.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="FMXSample">
+        <MSBuild Projects="Samples\FMXSample\FMXSample.dproj"/>
+    </Target>
+    <Target Name="FMXSample:Clean">
+        <MSBuild Projects="Samples\FMXSample\FMXSample.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FMXSample:Make">
+        <MSBuild Projects="Samples\FMXSample\FMXSample.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ComplexGenerics;VCLSample;LibrarySample;MinimalConsole;FMXSample"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ComplexGenerics:Clean;VCLSample:Clean;LibrarySample:Clean;MinimalConsole:Clean;FMXSample:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ComplexGenerics:Make;VCLSample:Make;LibrarySample:Make;MinimalConsole:Make;FMXSample:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

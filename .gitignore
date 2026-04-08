@@ -74,3 +74,6 @@ GEMINI.md
 !Test/Data/*.dpr
 !Test/Data/*.dproj
 Test/Bin/Win32/Debug/dunit.ini
+Test/Integration/Samples/*/*.res
+**/Debug
+**/Release

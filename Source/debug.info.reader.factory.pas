@@ -61,7 +61,7 @@ begin
   var Reader := TStreamReader.Create(AFilename);
   try
     var LineCount := 0;
-    while (not Reader.EndOfStream) and (LineCount < 50) do
+    while (not Reader.EndOfStream) and (LineCount < 500) do
     begin
       var Line := Reader.ReadLine;
       Inc(LineCount);
@@ -72,7 +72,7 @@ begin
         Exit(True);
       end;
 
-      if Line.StartsWith('.text') or Line.StartsWith('.data') or Line.Contains('0x00000000') or Line.Contains('Discarded input sections') then
+      if Line.StartsWith('.text') or Line.StartsWith('.data') or Line.Contains('0x00000000') or Line.Contains('Discarded input sections') or Line.StartsWith('Archive member included') then
       begin
         InputFormat := ifElfMap;
         Result := True; // Keep looking for Delphi signature just in case
