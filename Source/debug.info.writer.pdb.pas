@@ -79,7 +79,7 @@ type
     TModuleLayoutList = TDictionary<TDebugInfoModule, TModuleLayout>;
 
     TNamedStreamEntry = record
-      Name: AnsiString;
+      Name: UTF8String;
       Stream: TMSFStream;
     end;
 
@@ -87,7 +87,7 @@ type
     private
       FReadOnly: boolean;
     public
-      function Add(const Name: AnsiString; Stream: TMSFStream): integer; overload;
+      function Add(const Name: UTF8String; Stream: TMSFStream): integer; overload;
       property ReadOnly: boolean read FReadOnly write FReadOnly;
     end;
 
@@ -163,7 +163,7 @@ begin
   Result := (Value and (Alignment - 1) = 0);
 end;
 
-function IsAsciiString(const S: AnsiString): boolean;
+function IsAsciiString(const S: UTF8String): boolean;
 begin
   for var c in S do
     if (Ord(c) >= $80) then
@@ -183,7 +183,7 @@ begin
   end;
 end;
 
-function GsiRecordCmp(const S1, S2: AnsiString): integer;
+function GsiRecordCmp(const S1, S2: UTF8String): integer;
 begin
   // Shorter strings always compare less than longer strings.
   Result := Length(S1) - Length(S2);
@@ -194,7 +194,7 @@ begin
       Result := MemCmp(pointer(S1), pointer(S2), Length(S1))
     else
       // Both strings are ascii, perform a case-insensitive comparison.
-      Result := System.AnsiStrings.CompareText(S1, S2);
+      Result := System.AnsiStrings.CompareText(AnsiString(S1), AnsiString(S2));
   end;
 end;
 
@@ -319,7 +319,7 @@ begin
 
     // Write the strings
     for var Index := 0 to FNamedStreams.Count-1 do
-      Result.Writer.Write(FNamedStreams[Index].Name); // Zero terminated string
+      Result.Writer.Write(AnsiString(FNamedStreams[Index].Name)); // Zero terminated string
 
     // Hash table:
     // +--------------------+-- +0
@@ -539,7 +539,6 @@ begin
     var ModuleLayout := FModuleLayout[Module];
 
     var ModInfo := Default(TModInfo);
-    ModInfo := Default(TModInfo);
     PopulateDBISectionContribution(ModInfo.SectionContrib, Module);
     ModInfo.SectionContrib.ModuleIndex := ModuleIndex;
 
@@ -903,7 +902,7 @@ type
   TPublicSym32ex = record
     PublicSym32: TCVPublicSym32;
     Symbol: TDebugInfoSymbol;
-    Name: AnsiString;
+    Name: UTF8String;
     SymOffset: Cardinal;        // Offset of the symbol record in the publics stream.
 {$ifdef PDB_Minimal_Debug}
     BucketIndex: Cardinal;      // GSI hash table bucket index. The maximum value is IPHR_HASH_MINIMAL.
@@ -1094,7 +1093,15 @@ begin
         // This comparison is necessary to make the sorting stable in the presence
         // of two static globals with the same name.
         if (Result = 0) then
-          Result :=  integer(L.SymOffset) - integer(R.SymOffset);
+        begin
+          if (L.SymOffset < R.SymOffset) then
+            Result := -1
+          else
+          if (L.SymOffset > R.SymOffset) then
+            Result := 1
+          else
+            Result := 0;
+        end;
       end);
 
     var ChainCount := 0;
@@ -1330,10 +1337,18 @@ var
         Result := integer(SymA.PublicSym32.Segment) - integer(SymB.PublicSym32.Segment);
 
         if (Result = 0) then
-          Result := integer(SymA.PublicSym32.Offset) - integer(SymB.PublicSym32.Offset);
+        begin
+          if (SymA.PublicSym32.Offset < SymB.PublicSym32.Offset) then
+            Result := -1
+          else
+          if (SymA.PublicSym32.Offset > SymB.PublicSym32.Offset) then
+            Result := 1
+          else
+            Result := 0;
+        end;
 
         if (Result = 0) then
-          Result := System.AnsiStrings.CompareStr(SymA.Name, SymB.Name);
+          Result := System.AnsiStrings.CompareStr(AnsiString(SymA.Name), AnsiString(SymB.Name));
       end));
 
 
@@ -1379,7 +1394,7 @@ var
         Publics[Index].PublicSym32.Flags := Ord(CVPubSymFlags.cvpsfFunction);
 
         Publics[Index].Symbol := Symbol;
-        Publics[Index].Name := AnsiString(Symbol.Name);
+        Publics[Index].Name := UTF8String(Symbol.Name);
 
         Inc(Index);
       end;
@@ -1712,7 +1727,7 @@ begin
   var Collisions := 0;
   for var Index := 0 to Strings.Count-1 do
   begin
-    var Filename := AnsiString(Strings[Index]);
+    var Filename := UTF8String(Strings[Index]);
 
     var Hash: Cardinal;
     if (StringTableHeader.HashVersion = 1) then
@@ -1828,7 +1843,13 @@ begin
       Lines.Sort(IComparer<TDebugInfoSourceLine>(
         function(const A, B: TDebugInfoSourceLine): integer
         begin
-          Result := integer(A.Offset) - integer(B.Offset);
+          if (A.Offset < B.Offset) then
+            Result := -1
+          else
+          if (A.Offset > B.Offset) then
+            Result := 1
+          else
+            Result := 0;
 
           // Duplicate offets can exist
         end));
@@ -1837,7 +1858,7 @@ begin
       var SourceGroups := TObjectList<TSourceLineList>.Create(True);
       try
 
-        var SymbolOffsets := TList<Cardinal>.Create;
+        var SymbolOffsets := TList<TDebugInfoOffset>.Create;
         try
           // Apparently each symbol within the module must be at the start of a group.
           // Collect a list of all symbol offsets for the module.
@@ -1847,7 +1868,7 @@ begin
 
           var SourceFile: TDebugInfoSourceFile := nil;
           var Group: TSourceLineList := nil;
-          var NextSymbolOffset: Cardinal := 0;
+          var NextSymbolOffset: TDebugInfoOffset := 0;
           var SymbolOffsetIndex := 0;
 
           // Group lines by source file
@@ -1857,14 +1878,17 @@ begin
             // and get the next symbol offset.
             while (SourceLine.Offset >= NextSymbolOffset) do
             begin
+              SourceFile := nil; // Trigger a new group
+
               if (SymbolOffsetIndex < SymbolOffsets.Count) then
               begin
                 NextSymbolOffset := SymbolOffsets[SymbolOffsetIndex];
                 Inc(SymbolOffsetIndex);
               end else
-                NextSymbolOffset := MaxInt;
-
-              SourceFile := nil; // Trigger a new group
+              begin
+                NextSymbolOffset := High(TDebugInfoOffset);
+                break; // Because, in theory, SourceLine.Offset can be High(TDebugInfoOffset) in which case we would have an endless loop
+              end;
             end;
 
             // Start a new group
@@ -1888,7 +1912,13 @@ begin
         var GroupComparer: IComparer<TDebugInfoSourceLine> := IComparer<TDebugInfoSourceLine>(
           function(const A, B: TDebugInfoSourceLine): integer
           begin
-            Result := integer(A.Offset) - integer(B.Offset);
+            if (A.Offset < B.Offset) then
+              Result := -1
+            else
+            if (A.Offset > B.Offset) then
+              Result := 1
+            else
+              Result := 0;
           end);
 
         for var Group in SourceGroups do
@@ -2156,7 +2186,7 @@ end;
 //      TDebugInfoPdbWriter.TNamedStreamList
 //
 // -----------------------------------------------------------------------------
-function TDebugInfoPdbWriter.TNamedStreamList.Add(const Name: AnsiString; Stream: TMSFStream): integer;
+function TDebugInfoPdbWriter.TNamedStreamList.Add(const Name: UTF8String; Stream: TMSFStream): integer;
 begin
   Assert(not ReadOnly);
 

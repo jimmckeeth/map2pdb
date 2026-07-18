@@ -78,6 +78,7 @@ type
     // Writes strings as zero terminated ansi strings. Does not write the length byte/word
     procedure Write(const Str: string); overload;
     procedure Write(const Str: AnsiString); overload;
+    procedure Write(const Str: UTF8String); overload;
     // Write a record (or any other typed value)
     procedure Write<T>(const Value: T); overload;
     // Write a dynamic array
@@ -837,11 +838,7 @@ end;
 
 procedure TBinaryBlockWriter.Write(const Str: string);
 begin
-  // TODO : Handle UTF8 here
-  if (Str <> '') then
-    Write(AnsiString(Str))
-  else
-    Write(Byte(0));
+  Write(UTF8String(Str));
 end;
 
 procedure TBinaryBlockWriter.Write(const Str: AnsiString);
@@ -852,14 +849,17 @@ begin
     Write(Byte(0));
 end;
 
+procedure TBinaryBlockWriter.Write(const Str: UTF8String);
+begin
+  Write(AnsiString(Str));
+end;
+
 procedure TBinaryBlockWriter.WriteBuffer(const Buffer; Count: NativeInt);
-type
-  TByteArray = array[0..MaxInt-1] of Byte;
-  PByteArray = ^TByteArray;
 begin
   // Find start interval of this piece of data.
   // Disregard the first block so intervals start with the two FPM blocks
   var Interval := (FStream.Position - FBlockSize) div FIntervalSize;
+  var Source: PByte := @Buffer;
 
   while (Count > 0) do
   begin
@@ -869,7 +869,8 @@ begin
     BytesInThisInterval := Min(Count, BytesInThisInterval);
 
     // Write part
-    FStream.WriteBuffer(Buffer, BytesInThisInterval);
+    FStream.WriteBuffer(Source^, BytesInThisInterval);
+    Inc(Source, BytesInThisInterval);
     Dec(Count, BytesInThisInterval);
 
     // More to write or end of interval?
@@ -1012,30 +1013,26 @@ begin
     var NewInterval := (NewPosition - FBlockSize) div FIntervalSize;
     Assert(OldInterval <= NewInterval);
 
-    if (OldInterval <> NewInterval) then
+    // NewInterval /should/ generally be OldInterval+1 but just in case we for
+    // some reason expand more than one interval then we handle the general
+    // case by iteratively expanding one interval at a time.
+
+    while (OldInterval < NewInterval) do
     begin
-      Assert(OldInterval = NewInterval-1);
+      Inc(OldInterval);
 
       // Move up to the start of the FPMs in the next interval
-      var StartOfInterval := NewInterval * FIntervalSize + FBlockSize;
-//      Dec(NewPosition, StartOfInterval - FStream.Position);
-//      Assert(NewPosition >= 0);
-      FStream.Position := StartOfInterval;
+      FStream.Position := OldInterval * FIntervalSize + FBlockSize;
 
       // Write the two FPM blocks
       WriteBlockMap;
       WriteBlockMap;
+    end;
 
-      // Seek into the new interval. Adjust for the two FPMs just written.
-//      Dec(NewPosition, 2 * FBlockSize);
-//      Assert(NewPosition >= 0);
-//      FStream.Seek(NewPosition, soCurrent);
-      FStream.Position := NewPosition;
-      Assert(PhysicalToLogicalOffset(FStream.Position) = Value);
-    end else
-      FStream.Position := NewPosition;
-  end else
-    FStream.Position := NewPosition;
+    Assert(PhysicalToLogicalOffset(NewPosition) = Value);
+  end;
+
+  FStream.Position := NewPosition;
   FStreamSize := Max(FStreamSize, FStream.Position);
 end;
 

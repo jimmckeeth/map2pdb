@@ -68,6 +68,7 @@ uses
   System.SysUtils,
   System.IOUtils,
   System.Math,
+  System.Character,
   Winapi.Windows;
 
 // -----------------------------------------------------------------------------
@@ -121,7 +122,8 @@ begin
     // Find last '.'
     var n2 := n;
     var LastDot := -1;
-    while (n2 <= Result.Length) and (Ord(Result[n2]) <= 255) and (AnsiChar(Result[n2]) in ['a'..'z', 'A'..'Z', '.']) do
+
+    while (n2 <= Result.Length) and ((Result[n2] = '.') or (Result[n2] = '_') or (Result[n2].IsLetterOrDigit)) do
     begin
       if (Result[n2] = '.') then
         LastDot := n2;
@@ -133,6 +135,225 @@ begin
     inc(n);
   end;
 end;
+
+// -----------------------------------------------------------------------------
+//
+//      TDebugInfoLineModuleLogger
+//
+// -----------------------------------------------------------------------------
+// Logger for map reader
+// -----------------------------------------------------------------------------
+type
+  IDebugInfoLineLoggerContextProvider = interface
+    ['{44664F53-A3E3-41FD-9DD4-6C98B8D4397D}']
+    function GetLineNumber: integer;
+    function GetLineText: string;
+    property LineNumber: integer read GetLineNumber;
+    property LineText: string read GetLineText;
+  end;
+
+type
+  TDebugInfoLineModuleLogger = class(TInterfacedObject, IDebugInfoLineLogger)
+  private
+    FModuleLogger: IDebugInfoModuleLogger;
+    FContextProvider: IDebugInfoLineLoggerContextProvider;
+  protected
+    // IDebugInfoLineModuleLogger
+    procedure Warning(const Msg: string); overload;
+    procedure Warning(const Fmt: string; const Args: array of const); overload;
+    procedure Error(const Msg: string); overload;
+    procedure Error(const Fmt: string; const Args: array of const); overload;
+  public
+    constructor Create(const AModuleLogger: IDebugInfoModuleLogger; const AContextProvider: IDebugInfoLineLoggerContextProvider);
+  end;
+
+procedure TDebugInfoLineModuleLogger.Error(const Msg: string);
+begin
+  FModuleLogger.Error('[%5d] %s'#13#10'%s', [FContextProvider.LineNumber, Msg, FContextProvider.LineText]);
+end;
+
+constructor TDebugInfoLineModuleLogger.Create(const AModuleLogger: IDebugInfoModuleLogger; const AContextProvider: IDebugInfoLineLoggerContextProvider);
+begin
+  inherited Create;
+  FModuleLogger := AModuleLogger;
+  FContextProvider := AContextProvider;
+end;
+
+procedure TDebugInfoLineModuleLogger.Error(const Fmt: string; const Args: array of const);
+begin
+  Error(Format(Fmt, Args));
+end;
+
+procedure TDebugInfoLineModuleLogger.Warning(const Msg: string);
+begin
+  FModuleLogger.Warning('[%5d] %s', [FContextProvider.LineNumber, Msg]);
+end;
+
+procedure TDebugInfoLineModuleLogger.Warning(const Fmt: string; const Args: array of const);
+begin
+  Warning(Format(Fmt, Args));
+end;
+
+
+{$if (CompilerVersion < 35.0)}
+// -----------------------------------------------------------------------------
+//
+//      TNoRefCountObject
+//
+// -----------------------------------------------------------------------------
+// Introduced in the RTL in Delphi 11
+// -----------------------------------------------------------------------------
+type
+  TNoRefCountObject = class(TObject, IInterface)
+  protected
+    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+    function _AddRef: Integer; stdcall;
+    function _Release: Integer; stdcall;
+  end;
+
+function TNoRefCountObject.QueryInterface(const IID: TGUID; out Obj): HResult;
+begin
+  if GetInterface(IID, Obj) then
+    Result := S_OK
+  else
+    Result := E_NOINTERFACE;
+end;
+
+function TNoRefCountObject._AddRef: Integer;
+begin
+  Result := -1;
+end;
+
+function TNoRefCountObject._Release: Integer;
+begin
+  Result := -1;
+end;
+{$ifend}
+
+// -----------------------------------------------------------------------------
+//
+//      TLineReader
+//
+// -----------------------------------------------------------------------------
+// Present an input stream as a sequence of text lines
+// -----------------------------------------------------------------------------
+type
+  TLineReader = class(TNoRefCountObject, IDebugInfoLineLoggerContextProvider)
+  strict private
+    FReader: TStreamReader;
+    FLineNumber: integer;
+    FLineBuffer: string;
+    FHasLineBuffer: boolean;
+    FPeekBuffer: string;
+    FHasPeekBuffer: boolean;
+  private
+    // IDebugInfoLineLoggerContextProvider
+    function GetLineNumber: integer;
+    function GetLineText: string;
+  public
+    constructor Create(Stream: TStream);
+    destructor Destroy; override;
+
+    function CurrentLine(Skip: boolean = False): string;
+    function HasData: boolean;
+    function NextLine(Skip: boolean = False): string;
+    function PeekLine(Skip: boolean = False): string;
+
+    function SkipSpace(Offset: integer): integer;
+
+    property LineBuffer: string read FLineBuffer;
+    property LineNumber: integer read FLineNumber;
+  end;
+
+// -----------------------------------------------------------------------------
+
+constructor TLineReader.Create(Stream: TStream);
+begin
+  inherited Create;
+
+  FReader := TStreamReader.Create(Stream);
+end;
+
+destructor TLineReader.Destroy;
+begin
+  FReader.Free;
+
+  inherited;
+end;
+
+function TLineReader.GetLineNumber: integer;
+begin
+  Result := FLineNumber;
+end;
+
+function TLineReader.GetLineText: string;
+begin
+  Result := FLineBuffer;
+end;
+
+function TLineReader.PeekLine(Skip: boolean): string;
+begin
+  while (not FHasPeekBuffer) and (not FReader.EndOfStream) do
+  begin
+    FPeekBuffer := FReader.ReadLine.TrimLeft;
+    Inc(FLineNumber);
+    if (not Skip) or (not FPeekBuffer.IsEmpty) then
+      FHasPeekBuffer := True;
+  end;
+
+  if (FHasPeekBuffer) then
+    Result := FPeekBuffer
+  else
+    Result := '';
+end;
+
+function TLineReader.SkipSpace(Offset: integer): integer;
+begin
+  Result := Offset;
+  while (Result <= Length(FLineBuffer)) and (FLineBuffer[Result] = ' ') do
+    Inc(Result);
+end;
+
+function TLineReader.CurrentLine(Skip: boolean): string;
+begin
+  if (not FHasLineBuffer) then
+  begin
+    if (not FHasPeekBuffer) then
+    begin
+      while (not FHasLineBuffer) and (not FReader.EndOfStream) do
+      begin
+        FLineBuffer := FReader.ReadLine.TrimLeft;
+        Inc(FLineNumber);
+        if (not Skip) or (not FLineBuffer.IsEmpty) then
+          FHasLineBuffer := True;
+      end;
+    end else
+    begin
+      FLineBuffer := FPeekBuffer;
+      FHasLineBuffer := True;
+      FHasPeekBuffer := False;
+      FPeekBuffer := '';
+    end;
+  end;
+
+  if (FHasLineBuffer) then
+    Result := FLineBuffer
+  else
+    Result := '';
+end;
+
+function TLineReader.NextLine(Skip: boolean): string;
+begin
+  FHasLineBuffer := False;
+  FLineBuffer := '';
+  Result := CurrentLine(Skip);
+end;
+
+function TLineReader.HasData: boolean;
+begin
+  Result := (FHasLineBuffer) or (FHasPeekBuffer) or (not FReader.EndOfStream);
+end;
+
 
 // -----------------------------------------------------------------------------
 //
@@ -356,10 +577,11 @@ begin
           ModulePos := n2;
           Dec(n2);
         end;
-        StartOfName := ModulePos;
 
-        var IsPath := CharInSet(Reader.LineBuffer[n2], ['\', '/']);
-        var FilenameIsAlias := (Reader.LineBuffer[n2] = '|');
+        var IsPath := (n2 >= StartOfName) and CharInSet(Reader.LineBuffer[n2], ['\', '/']);
+        var FilenameIsAlias := (n2 >= StartOfName) and (Reader.LineBuffer[n2] = '|');
+
+        StartOfName := ModulePos;
 
         var ModuleName := Copy(Reader.LineBuffer, StartOfName, EndOfName-StartOfName+1);
 
@@ -398,10 +620,13 @@ begin
         if (Module <> nil) then
         begin
           LineLogger.Warning('Modules overlap: %s, %s'#13#10'%s', [ModuleName, Module.Name, Reader.LineBuffer]);
-          var Overlap := Module.Offset + Module.Size - Offset;
-          if (Overlap > 0) then
+
+          if (Module.Offset + Module.Size > Offset) and (Module.Offset <= Offset) then
           begin
-            // Existing module extends into this one. Move this one.
+
+            // Existing module starts before or at this one and extends into this one. Move this one.
+            var Overlap := Module.Offset + Module.Size - Offset;
+
             if (Size <= Overlap) then
             begin
               LineLogger.Warning('Unable to recover by moving module as module is too small. Module ignored: %s', [ModuleName]);
@@ -412,18 +637,23 @@ begin
               Offset := Offset + Overlap;
               Size := Size - Overlap;
             end;
+
           end else
           begin
-            // This module extends into existing module. Shrink this one.
-            if (Size <= -Overlap) then
+
+            // This module starts before existing module and extends into it. Shrink this one.
+            var Overlap := Offset + Size - Module.Offset;
+
+            if (Size <= Overlap) then
             begin
               LineLogger.Warning('Unable to recover by moving module as module is too small. Module ignored: %s', [ModuleName]);
               Size := 0;
             end else
             begin
-              LineLogger.Warning('Recovered by shrinking module %d bytes', [-Overlap]);
-              Size := Size + Overlap;
+              LineLogger.Warning('Recovered by shrinking module %d bytes', [Overlap]);
+              Size := Size - Overlap;
             end;
+
           end;
 
           // If new module still overlap something we give up on it
@@ -821,6 +1051,15 @@ begin
       break;
     end;
 
+  // Allow trailing digits
+  if (Start <> Offset) then
+    while (Offset <= Length(Str)) do
+      case Str[Offset] of
+        '0'..'9': Inc(Offset);
+      else
+        break;
+      end;
+
   if (Start = Offset) then
     LineLogger.Warning('Invalid segment name');
 
@@ -855,6 +1094,4 @@ begin
     Inc(Result, Length(Marker));
 end;
 
-
 end.
-
